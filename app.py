@@ -1,16 +1,21 @@
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
 import os
+from huggingface_hub import hf_hub_download
 
 st.set_page_config(page_title="Eligibility Lookup Tool", page_icon="🌲", layout="wide")
 st.title("Census Tract Eligibility Lookup Tool")
 
-# Load census tract shapefiles
-@st.cache_resource
-def load_tract_shapefile():
-    return gpd.read_file("tracts_shapefile/national_tracts_2020.shp").to_crs("EPSG:4326")
+# Load census tract parquet from DropBox
+@st.cache_data(show_spinner="Downloading and extracting geospatial data...")
+def load_parquet_from_huggingface():
+    parquet_path =  hf_hub_download(
+        repo_id = "MMNASH10/my-parquet-dataset",
+        filename = "national_tracts_2020.parquet",
+        repo_type = "dataset"
+    )
+    return gpd.read_parquet(parquet_path)
 
 # Load eligibility flags CSV
 @st.cache_data
@@ -18,8 +23,11 @@ def load_eligibility_data():
     # read docs if needed
     return pd.read_csv("eligibility_flags.csv", dtype={"GEOID": str})
 
-tracts_gdf = load_tract_shapefile()
+tracts_gdf = load_parquet_from_huggingface()
 eligibility_df = load_eligibility_data()
+
+if tracts_gdf is not None:
+    st.success("Data loaded successfully!")
 
 # Choose input method (Excel/CSV or Manual Input)
 method = st.radio("Choose coordinates input method:",
@@ -38,7 +46,7 @@ def process_coords(df):
     # Merge eligibility data
     result = pd.merge(joined, eligibility_df, on="GEOID", how="left")
     # Select output columns (NAMELSAD???)
-    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NCMT_Eligibility"]]
+    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility"]]
 
 # Excel/CSV Upload Method
 if method == "Upload Excel/CSV":
