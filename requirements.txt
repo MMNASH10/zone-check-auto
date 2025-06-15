@@ -5,4 +5,7 @@ requests~=2.32.3
 shapely~=2.1.1
 huggingface-hub~=0.32.5
 huggingface_hub[hf_xet]
-openpyxl
+openpyxl~=3.1.5
+pydeck~=0.9.1
+folium~=0.19.7
+streamlit_folium~=0.25.0
