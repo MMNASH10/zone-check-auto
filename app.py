@@ -3,6 +3,9 @@ import pandas as pd
 import geopandas as gpd
 import os
 from huggingface_hub import hf_hub_download
+import pydeck as pdk
+import folium
+from streamlit_folium import st_folium
 import openpyxl
 
 st.set_page_config(page_title="Eligibility Lookup Tool", page_icon="🌲", layout="wide")
@@ -28,17 +31,6 @@ selected_states = st.multiselect(
     "Select the states you want to check:",
     options = list(STATE_FIPS.keys()),
 )
-
-
-# Load census tract parquet from DropBox
-#@st.cache_data(show_spinner="Downloading and extracting geospatial data...")
-#def load_parquet_from_huggingface():
- #   parquet_path =  hf_hub_download(
-  #      repo_id = "MMNASH10/my-parquet-dataset",
-   #     filename = "national_tracts_2020.parquet",
-    #    repo_type = "dataset"
-    #)
-    #return gpd.read_parquet(parquet_path)
 
 # Load selected states' files
 @st.cache_data(show_spinner="Loading geospatial data...")
@@ -83,6 +75,7 @@ method = st.radio("Choose coordinates input method:",
                         " enter each latitude and longitude pair seperated by ___"
                   )
 
+
 # Function to do spatial join + merge eligibility flags
 def process_coords(df):
     # Make GeoDataFrame frame from lat/lon
@@ -95,6 +88,18 @@ def process_coords(df):
     result = pd.merge(joined, eligibility_df, on="GEOID", how="left")
     # Select output columns (NAMELSAD???)
     return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility"]]
+
+def eligibility_polygons_gdf(tracts, eligibility):
+    joined = pd.merge(tracts, eligibility, on="GEOID", how="left")
+
+    # Clean up
+    joined["GEOID"] = joined["GEOID"].astype(str).str.zfill(11)
+    joined = gpd.GeoDataFrame(joined, geometry="geometry", crs="EPSG:4326")
+    joined = joined[joined.geometry.notnull() & joined.geometry.is_valid & ~joined.geometry.is_empty]
+
+    return joined
+
+results = None
 
 # Excel/CSV Upload Method
 if tracts_gdf is not None:
@@ -113,3 +118,81 @@ if tracts_gdf is not None:
                     st.error("Please include 'latitude' and 'longitude' columns in your file.")
             except Exception as e:
                 st.error(f"Error processing file: {e}")
+
+# Display the coordinates on a map
+if results is not None:
+
+    # Create eligibility polygons
+    eligibility_polygons = eligibility_polygons_gdf(tracts_gdf, eligibility_df)
+
+    # Merge in tract geometries
+    results_with_geom = pd.merge(results, tracts_gdf[["GEOID", "geometry"]], on="GEOID", how="left")
+
+    # Convert to GeoDataFrame
+    # Only re-wrap if it's not already a GeoDataFrame
+    if not isinstance(results_with_geom, gpd.GeoDataFrame):
+        results_gdf = gpd.GeoDataFrame(results_with_geom, geometry="geometry", crs="EPSG:4326")
+    else:
+        results_gdf = results_with_geom.to_crs(epsg=4326)
+
+    results_gdf = results_gdf[results_gdf.geometry.is_valid]
+    results_gdf = results_gdf[~results_gdf.geometry.is_empty]
+
+    eligibility_polygons = eligibility_polygons[eligibility_polygons.geometry.is_valid]
+    eligibility_polygons = eligibility_polygons[~eligibility_polygons.geometry.is_empty]
+
+    results_gdf["geometry"] = results_gdf["geometry"].simplify(tolerance=0.0001, preserve_topology=True)
+
+    # Get center of bounding box
+    minx, miny, maxx, maxy = eligibility_polygons.total_bounds
+    center_lat = (miny + maxy) / 2
+    center_lon = (minx + maxx) / 2
+
+    # Create the map centered on your data
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=10, tiles="CartoDB positron")
+
+    # Function to assign colors
+    def get_color(status):
+        if status == "Eligible":
+            return "yellow"
+        elif status == "Not Eligible":
+            return "gray"
+        elif status in ["Severe Distress", "Non-Metropolitan"]:
+            return "red"  # light red
+        elif status in ["Deep Distress", "High Migration Rural County"]:
+            return "purple"
+        else:
+            return "white"
+
+
+    # Replace NaNs with safe values
+    results_gdf = results_gdf.fillna("")
+    eligibility_polygons = eligibility_polygons.fillna("")
+
+    # Create a simplified copy — DO NOT modify in place if you're using the original elsewhere
+    simplified_polygons = eligibility_polygons[["GEOID", "geometry", "NMTC_Eligibility"]].copy()
+    simplified_polygons["geometry"] = simplified_polygons["geometry"].simplify(0.001, preserve_topology=True)
+
+    # Optional: drop any rows that were mangled or became invalid
+    simplified_polygons = simplified_polygons[simplified_polygons.geometry.is_valid & ~simplified_polygons.geometry.is_empty]
+
+    # Add census tracts as shaded polygons
+    folium.GeoJson(
+        simplified_polygons,
+        name = "Census Tracts",
+        style_function=lambda feature: {
+            "fillColor": get_color(feature["properties"].get("NMTC_Eligibility", None)),
+            "color" : "black",
+            "weight": 0.5,
+            "fillOpacity": 0.7,
+        },
+        tooltip=folium.GeoJsonTooltip(fields=["GEOID", "NMTC_Eligibility"])
+    ).add_to(m)
+
+    folium.Marker(
+        location=[results_gdf.iloc[0]["latitude"], results_gdf.iloc[0]["longitude"]],
+        popup="Test Marker"
+    ).add_to(m)
+
+    # Show map
+    st_data = st_folium(m, width=1000, height=700)
