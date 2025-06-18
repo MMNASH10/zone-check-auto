@@ -120,61 +120,61 @@ if tracts_gdf is not None:
                 st.error(f"Error processing file: {e}")
 
 # Display the coordinates on a map
-if results is not None:
+# if results is not None:
 
     # Create eligibility polygons
-    eligibility_polygons = eligibility_polygons_gdf(tracts_gdf, eligibility_df)
+    # eligibility_polygons = eligibility_polygons_gdf(tracts_gdf, eligibility_df)
 
     # Merge in tract geometries
-    results_with_geom = pd.merge(results, tracts_gdf[["GEOID", "geometry"]], on="GEOID", how="left")
+    # results_with_geom = pd.merge(results, tracts_gdf[["GEOID", "geometry"]], on="GEOID", how="left")
 
     # Convert to GeoDataFrame
     # Only re-wrap if it's not already a GeoDataFrame
-    if not isinstance(results_with_geom, gpd.GeoDataFrame):
-        results_gdf = gpd.GeoDataFrame(results_with_geom, geometry="geometry", crs="EPSG:4326")
-    else:
-        results_gdf = results_with_geom.to_crs(epsg=4326)
+    # if not isinstance(results_with_geom, gpd.GeoDataFrame):
+        # results_gdf = gpd.GeoDataFrame(results_with_geom, geometry="geometry", crs="EPSG:4326")
+    # else:
+        # results_gdf = results_with_geom.to_crs(epsg=4326)
 
-    results_gdf = results_gdf[results_gdf.geometry.is_valid]
-    results_gdf = results_gdf[~results_gdf.geometry.is_empty]
+    # results_gdf = results_gdf[results_gdf.geometry.is_valid]
+    # results_gdf = results_gdf[~results_gdf.geometry.is_empty]
 
-    eligibility_polygons = eligibility_polygons[eligibility_polygons.geometry.is_valid]
-    eligibility_polygons = eligibility_polygons[~eligibility_polygons.geometry.is_empty]
+    # eligibility_polygons = eligibility_polygons[eligibility_polygons.geometry.is_valid]
+    # eligibility_polygons = eligibility_polygons[~eligibility_polygons.geometry.is_empty]
 
-    results_gdf["geometry"] = results_gdf["geometry"].simplify(tolerance=0.0001, preserve_topology=True)
+    # results_gdf["geometry"] = results_gdf["geometry"].simplify(tolerance=0.0001, preserve_topology=True)
 
     # Get center of bounding box
-    minx, miny, maxx, maxy = eligibility_polygons.total_bounds
-    center_lat = (miny + maxy) / 2
-    center_lon = (minx + maxx) / 2
+    # minx, miny, maxx, maxy = eligibility_polygons.total_bounds
+    # center_lat = (miny + maxy) / 2
+    # center_lon = (minx + maxx) / 2
 
     # Create the map centered on your data
     # m = folium.Map(location=[center_lat, center_lon], zoom_start=7, tiles="CartoDB positron")
 
     # Function to assign colors
-    def get_color(status):
-        if status == "Eligible":
-            return "yellow"
-        elif status == "Not Eligible":
-            return "gray"
-        elif status in ["Severe Distress", "Non-Metropolitan"]:
-            return "red"  # light red
-        elif status in ["Deep Distress", "High Migration Rural County"]:
-            return "purple"
-        else:
-            return "white"
+    # def get_color(status):
+        # if status == "Eligible":
+            # return "yellow"
+        # elif status == "Not Eligible":
+            # return "gray"
+        # elif status in ["Severe Distress", "Non-Metropolitan"]:
+            # return "red"  # light red
+        # elif status in ["Deep Distress", "High Migration Rural County"]:
+            # return "purple"
+        # else:
+            # return "white"
 
 
     # Replace NaNs with safe values
-    results_gdf = results_gdf.fillna("")
-    eligibility_polygons = eligibility_polygons.fillna("")
+    # results_gdf = results_gdf.fillna("")
+    # eligibility_polygons = eligibility_polygons.fillna("")
 
     # Create a simplified copy — DO NOT modify in place if you're using the original elsewhere
-    simplified_polygons = eligibility_polygons[["GEOID", "geometry", "NMTC_Eligibility"]].copy()
-    simplified_polygons["geometry"] = simplified_polygons["geometry"].simplify(0.001, preserve_topology=True)
+    # simplified_polygons = eligibility_polygons[["GEOID", "geometry", "NMTC_Eligibility"]].copy()
+    # simplified_polygons["geometry"] = simplified_polygons["geometry"].simplify(0.001, preserve_topology=True)
 
     # Optional: drop any rows that were mangled or became invalid
-    simplified_polygons = simplified_polygons[simplified_polygons.geometry.is_valid & ~simplified_polygons.geometry.is_empty]
+    # simplified_polygons = simplified_polygons[simplified_polygons.geometry.is_valid & ~simplified_polygons.geometry.is_empty]
 
     # Add census tracts as shaded polygons
     #folium.GeoJson(
