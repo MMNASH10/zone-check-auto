@@ -149,7 +149,7 @@ if results is not None:
     center_lon = (minx + maxx) / 2
 
     # Create the map centered on your data
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=10, tiles="CartoDB positron")
+    # m = folium.Map(location=[center_lat, center_lon], zoom_start=7, tiles="CartoDB positron")
 
     # Function to assign colors
     def get_color(status):
@@ -195,4 +195,4 @@ if results is not None:
     ).add_to(m)
 
     # Show map
-    st_data = st_folium(m, width=1000, height=700)
+    # st_data = st_folium(m, width=1000, height=700)
