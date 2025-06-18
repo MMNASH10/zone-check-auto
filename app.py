@@ -69,7 +69,7 @@ eligibility_df = load_eligibility_data()
 # Choose input method (Excel/CSV or Manual Input)
 st.subheader("Coordinates Input")
 method = st.radio("Choose coordinates input method:",
-                  ["Upload Excel/CSV", "Enter coordinates manually"],
+                  ["Upload Excel/CSV", "Enter coordinates manually (not functional yet)"],
                   help="For uploading an Excel or CSV file,  make sure you have the first column as latitudes"
                        " and the second column as longitudes.\n\nIf you are inputting the coordinates manually,"
                         " enter each latitude and longitude pair seperated by ___"
