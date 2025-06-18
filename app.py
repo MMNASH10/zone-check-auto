@@ -177,22 +177,22 @@ if results is not None:
     simplified_polygons = simplified_polygons[simplified_polygons.geometry.is_valid & ~simplified_polygons.geometry.is_empty]
 
     # Add census tracts as shaded polygons
-    folium.GeoJson(
-        simplified_polygons,
-        name = "Census Tracts",
-        style_function=lambda feature: {
-            "fillColor": get_color(feature["properties"].get("NMTC_Eligibility", None)),
-            "color" : "black",
-            "weight": 0.5,
-            "fillOpacity": 0.7,
-        },
-        tooltip=folium.GeoJsonTooltip(fields=["GEOID", "NMTC_Eligibility"])
-    ).add_to(m)
+    #folium.GeoJson(
+    #    simplified_polygons,
+    #    name = "Census Tracts",
+    #    style_function=lambda feature: {
+    #        "fillColor": get_color(feature["properties"].get("NMTC_Eligibility", None)),
+    #        "color" : "black",
+    #        "weight": 0.5,
+    #        "fillOpacity": 0.7,
+    #    },
+    #    tooltip=folium.GeoJsonTooltip(fields=["GEOID", "NMTC_Eligibility"])
+    #).add_to(m)
 
-    folium.Marker(
-        location=[results_gdf.iloc[0]["latitude"], results_gdf.iloc[0]["longitude"]],
-        popup="Test Marker"
-    ).add_to(m)
+    #folium.Marker(
+    #    location=[results_gdf.iloc[0]["latitude"], results_gdf.iloc[0]["longitude"]],
+    #    popup="Test Marker"
+    #).add_to(m)
 
     # Show map
     # st_data = st_folium(m, width=1000, height=700)
