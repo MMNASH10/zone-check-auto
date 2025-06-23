@@ -87,17 +87,17 @@ def process_coords(df):
     # Merge eligibility data
     result = pd.merge(joined, eligibility_df, on="GEOID", how="left")
     # Select output columns (NAMELSAD???)
-    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility"]]
+    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone"]]
 
-def eligibility_polygons_gdf(tracts, eligibility):
-    joined = pd.merge(tracts, eligibility, on="GEOID", how="left")
+#def eligibility_polygons_gdf(tracts, eligibility):
+    #joined = pd.merge(tracts, eligibility, on="GEOID", how="left")
 
     # Clean up
-    joined["GEOID"] = joined["GEOID"].astype(str).str.zfill(11)
-    joined = gpd.GeoDataFrame(joined, geometry="geometry", crs="EPSG:4326")
-    joined = joined[joined.geometry.notnull() & joined.geometry.is_valid & ~joined.geometry.is_empty]
+    #joined["GEOID"] = joined["GEOID"].astype(str).str.zfill(11)
+    #joined = gpd.GeoDataFrame(joined, geometry="geometry", crs="EPSG:4326")
+    #joined = joined[joined.geometry.notnull() & joined.geometry.is_valid & ~joined.geometry.is_empty]
 
-    return joined
+    #return joined
 
 results = None
 
