@@ -88,7 +88,7 @@ def process_coords(df):
     result = pd.merge(joined, eligibility_df, on="GEOID", how="left")
     # Select output columns (NAMELSAD???)
     st.write("Eligibility columns:", eligibility_df.columns.tolist())
-    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone"]]
+    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility"]]
 
 #def eligibility_polygons_gdf(tracts, eligibility):
     #joined = pd.merge(tracts, eligibility, on="GEOID", how="left")
