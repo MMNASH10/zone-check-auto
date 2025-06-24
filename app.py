@@ -57,6 +57,21 @@ if selected_states:
         st.error(f"Error loading census tracts: {e}")
         st.stop()
 
+# Load USDA eligibility parquet
+@st.cache_data(show_spinner="Loading USDA data...")
+def load_USDA_data():
+    try:
+        parquet_path = hf_hub_download(
+            repo_id="MMNASH10/my-parquet-dataset",
+            filename=f"irp_ineligible.parquet",
+            repo_type="dataset",
+        )
+        gdf = gpd.read_parquet(parquet_path)
+        gdf = gdf.to_crs("EPSG:4326")
+        return gdf
+    except Exception as e:
+        st.error(f"Failed to load USDA data: {e}")
+        return None
 
 # Load eligibility flags CSV
 @st.cache_data
@@ -64,6 +79,7 @@ def load_eligibility_data():
     # read docs if needed
     return pd.read_csv("eligibility_flags.csv", dtype={"GEOID": str})
 
+usda_gdf = load_USDA_data()
 eligibility_df = load_eligibility_data()
 
 # Choose input method (Excel/CSV or Manual Input)
@@ -75,9 +91,9 @@ method = st.radio("Choose coordinates input method:",
                         " enter each latitude and longitude pair seperated by ___"
                   )
 
-
 # Function to do spatial join + merge eligibility flags
 def process_coords(df):
+
     # Make GeoDataFrame frame from lat/lon
     gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326")
     # convert gdf to crs 4269
@@ -86,8 +102,17 @@ def process_coords(df):
     joined = gpd.sjoin(gdf, tracts_gdf, how="left", predicate="within")
     # Merge eligibility data
     result = pd.merge(joined, eligibility_df, on="GEOID", how="left")
+
+    # USDA eligibility check: join with ineligible areas
+    gdf_usda = gdf.to_crs(usda_gdf.crs)
+    usda_join = gpd.sjoin(gdf_usda, usda_gdf, how="left", predicate="within")
+
+    # If point joins with ineligible area, mark as not eligible
+    result["USDA_Eligible"] = usda_join.index_right.isna()
+    result["USDA_Eligible"] = result["USDA_Eligible"].map({True: "Yes", False: "No"})
+
     # Select output columns (NAMELSAD???)
-    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone"]]
+    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA_Eligible"]]
 
 #def eligibility_polygons_gdf(tracts, eligibility):
     #joined = pd.merge(tracts, eligibility, on="GEOID", how="left")
