@@ -85,6 +85,32 @@ def load_USDA_data():
     gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
     return gdf
 
+# TOO MUCH FOR STREAMLIT TO HANDLE
+# Load DOZ eligibility parquet
+# @st.cache_data(show_spinner="Loading DOZ service...")
+# def load_DOZ_data():
+#     url = "https://cimsprodprep.cdfifund.gov/arcgis/rest/services/PN/CIMS3_PN_View/MapServer/43/query"
+#     params = {
+#         "where": "1=1",
+#         "outFields": "*",
+#         "f": "geojson"
+#     }
+#     headers = {
+#         "User-Agent": "Mozilla/5.0 (compatible; MyApp/1.0; +https://cimsprodprep.cdfifund.gov/arcgis/rest/services/PN/CIMS3_PN_View/MapServer/43/query)"
+#     }
+#     resp = requests.get(url, params=params, headers=headers)
+#     resp.raise_for_status()
+#     gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+#
+#     print(gdf.columns)
+#     gdf.head()
+#
+#     # Index(['OBJECTID', 'GEOID10', 'STATE', 'COUNTY', 'TRACT', 'STUSAB',
+#     #        'STATE_NAME', 'Shape__Area', 'Shape__Length', 'geometry'],
+#     #       dtype='object')
+#
+#     return gdf
+
 # Load eligibility flags CSV
 @st.cache_data
 def load_eligibility_data():
@@ -92,6 +118,8 @@ def load_eligibility_data():
     return pd.read_csv("eligibility_flags.csv", dtype={"GEOID": str})
 
 usda_gdf = load_USDA_data()
+qoz_gdf = load_QOZ_data()
+#doz_gdf = load_DOZ_data()
 eligibility_df = load_eligibility_data()
 
 # Choose input method (Excel/CSV or Manual Input)
@@ -113,18 +141,18 @@ def process_coords(df):
     # Spatial join with census tracts
     joined = gpd.sjoin(gdf, tracts_gdf, how="left", predicate="within")
     # Merge eligibility data
-    result = pd.merge(joined, eligibility_df, on="GEOID", how="left")
+    results = pd.merge(joined, eligibility_df, on="GEOID", how="left")
 
     # USDA eligibility check: join with ineligible areas
     gdf_usda = gdf.to_crs(usda_gdf.crs)
     usda_join = gpd.sjoin(gdf_usda, usda_gdf, how="left", predicate="within")
 
     # If point joins with ineligible area, mark as not eligible
-    result["USDA_Eligible"] = usda_join.index_right.isna()
-    result["USDA_Eligible"] = result["USDA_Eligible"].map({True: "Yes", False: "No"})
+    results["USDA Eligible"] = usda_join.index_right.isna()
+    results["USDA Eligible"] = results["USDA Eligible"].map({True: "Yes", False: "No"})
 
     # Select output columns (NAMELSAD???)
-    return result[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA_Eligible"]]
+    return results[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible"]]
 
 #def eligibility_polygons_gdf(tracts, eligibility):
     #joined = pd.merge(tracts, eligibility, on="GEOID", how="left")
@@ -135,7 +163,7 @@ def process_coords(df):
     #joined = joined[joined.geometry.notnull() & joined.geometry.is_valid & ~joined.geometry.is_empty]
 
     #return joined
-    
+
 results = None
 
 # Excel/CSV Upload Method
@@ -169,17 +197,6 @@ if tracts_gdf is not None:
                 st.error(f"Error processing file: {e}")
 
 #bruh
-# st.write("USDA columns:", usda_gdf.columns.tolist())
-
-# Clean USDA GDF to remove any problematic fields
-# def clean_for_folium(gdf, keep_columns=["geometry"]):
-#     gdf_clean = gdf[keep_columns].copy()
-#     gdf_clean = gdf_clean[gdf_clean.geometry.notnull()]
-#     gdf_clean = gdf_clean[gdf_clean.geometry.is_valid]
-#     return gdf_clean
-#
-# # Keep only essential fields (add any other fields you want in tooltip)
-# usda_clean = clean_for_folium(usda_gdf, keep_columns=["geometry"])
 
 # Display the coordinates on a map
 # if results is not None:
@@ -209,8 +226,8 @@ if tracts_gdf is not None:
     # minx, miny, maxx, maxy = usda_gdf.total_bounds
     # center_lat = (miny + maxy) / 2
     # center_lon = (minx + maxx) / 2
-
-    # Create the map centered on your data
+    #
+    # # Create the map centered on your data
     # m = folium.Map(location=[center_lat, center_lon], zoom_start=7, tiles="CartoDB positron")
 
     # Function to assign colors
@@ -240,28 +257,28 @@ if tracts_gdf is not None:
 
     # Add census tracts as shaded polygons
     # folium.GeoJson(
-    #     usda_gdf, #simplified_polygons
-    #     name = "USDA eligible areas", #    name = "Census Tracts",
-    #    style_function=lambda feature: {
-    #        "fillColor": get_color(feature["properties"].get("NMTC_Eligibility", None)),
-    #        "color" : "black",
-    #        "weight": 0.5,
-    #        "fillOpacity": 0.7,
-    #    },
-    #    tooltip=folium.GeoJsonTooltip(fields=["GEOID", "NMTC_Eligibility"])
+    #     qoz_gdf, #simplified_polygons
+    #     name = "Qualified OZs", #    name = "Census Tracts",
+    #    # style_function=lambda feature: {
+    #    #     "fillColor": get_color(feature["properties"].get("NMTC_Eligibility", None)),
+    #    #     "color" : "black",
+    #    #     "weight": 0.5,
+    #    #     "fillOpacity": 0.7,
+    #    # },
+    #    # tooltip=folium.GeoJsonTooltip(fields=["GEOID", "NMTC_Eligibility"])
     # ).add_to(m)
-
+    #
     # for _, rows in results.iterrows():
     #     folium.Marker(
     #         location=[rows.latitude, rows.longitude],
     #         popup=rows.NAMELSAD,
     #         icon=folium.Icon(color="blue", icon="map-marker")
     #     ).add_to(m)
-
-    #folium.Marker(
-    #    location=[results_gdf.iloc[0]["latitude"], results_gdf.iloc[0]["longitude"]],
-    #    popup="Test Marker"
-    #).add_to(m)
-
-    # Show map
-    #st_data = st_folium(m, width=1000, height=700)
+    #
+    # #folium.Marker(
+    # #    location=[results_gdf.iloc[0]["latitude"], results_gdf.iloc[0]["longitude"]],
+    # #    popup="Test Marker"
+    # #).add_to(m)
+    #
+    # # Show map
+    # st_data = st_folium(m, width=1000, height=700)
