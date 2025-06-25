@@ -118,7 +118,7 @@ def load_eligibility_data():
     return pd.read_csv("eligibility_flags.csv", dtype={"GEOID": str})
 
 usda_gdf = load_USDA_data()
-qoz_gdf = load_QOZ_data()
+#qoz_gdf = load_QOZ_data()
 #doz_gdf = load_DOZ_data()
 eligibility_df = load_eligibility_data()
 
