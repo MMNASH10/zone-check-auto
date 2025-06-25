@@ -6,6 +6,8 @@ import pydeck as pdk
 import folium
 from streamlit_folium import st_folium
 import openpyxl
+import requests
+from io import BytesIO
 
 st.set_page_config(page_title="Eligibility Lookup Tool", page_icon="🌲", layout="wide")
 st.title("Census Tract Eligibility Lookup Tool")
@@ -58,20 +60,30 @@ if selected_states:
         st.stop()
 
 # Load USDA eligibility parquet
-@st.cache_data(show_spinner="Loading USDA data...")
+@st.cache_data(show_spinner="Loading USDA server...")
 def load_USDA_data():
-    try:
-        parquet_path = hf_hub_download(
-            repo_id="MMNASH10/my-parquet-dataset",
-            filename=f"irp_ineligible.parquet",
-            repo_type="dataset",
-        )
-        gdf = gpd.read_parquet(parquet_path)
-        gdf = gdf.to_crs("EPSG:4326")
-        return gdf
-    except Exception as e:
-        st.error(f"Failed to load USDA data: {e}")
-        return None
+    # try:
+    #     parquet_path = hf_hub_download(
+    #         repo_id="MMNASH10/my-parquet-dataset",
+    #         filename=f"rbs_ineligible.parquet", #f"irp_ineligible.parquet"
+    #         repo_type="dataset",
+    #     )
+    #     gdf = gpd.read_parquet(parquet_path)
+    #     gdf = gdf.to_crs("EPSG:4326")
+    #     return gdf
+    # except Exception as e:
+    #     st.error(f"Failed to load USDA data: {e}")
+    #     return None
+    url = "https://rdgdwe.sc.egov.usda.gov/arcgis/rest/services/Eligibility/Eligibility/MapServer/2/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
 
 # Load eligibility flags CSV
 @st.cache_data
@@ -123,7 +135,7 @@ def process_coords(df):
     #joined = joined[joined.geometry.notnull() & joined.geometry.is_valid & ~joined.geometry.is_empty]
 
     #return joined
-
+    
 results = None
 
 # Excel/CSV Upload Method
@@ -134,7 +146,19 @@ if tracts_gdf is not None:
         if uploaded_file is not None:
             try:
                 df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith(".xlsx") else pd.read_csv(uploaded_file)
+                points_df = df
                 if "latitude" in df.columns and "longitude" in df.columns:
+                    # Strip whitespace
+                    df["latitude"] = df["latitude"].astype(str).str.strip()
+                    df["longitude"] = df["longitude"].astype(str).str.strip()
+
+                    # Convert to numeric -> invalids become NaN
+                    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
+                    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
+
+                    # Drop rows with invalid coordinates
+                    df = df.dropna(subset=["latitude", "longitude"])
+
                     results = process_coords(df)
                     st.success(f"Processed {len(results)} coordinates.")
                     st.dataframe(results)
@@ -145,7 +169,17 @@ if tracts_gdf is not None:
                 st.error(f"Error processing file: {e}")
 
 #bruh
+# st.write("USDA columns:", usda_gdf.columns.tolist())
 
+# Clean USDA GDF to remove any problematic fields
+# def clean_for_folium(gdf, keep_columns=["geometry"]):
+#     gdf_clean = gdf[keep_columns].copy()
+#     gdf_clean = gdf_clean[gdf_clean.geometry.notnull()]
+#     gdf_clean = gdf_clean[gdf_clean.geometry.is_valid]
+#     return gdf_clean
+#
+# # Keep only essential fields (add any other fields you want in tooltip)
+# usda_clean = clean_for_folium(usda_gdf, keep_columns=["geometry"])
 
 # Display the coordinates on a map
 # if results is not None:
@@ -172,7 +206,7 @@ if tracts_gdf is not None:
     # results_gdf["geometry"] = results_gdf["geometry"].simplify(tolerance=0.0001, preserve_topology=True)
 
     # Get center of bounding box
-    # minx, miny, maxx, maxy = eligibility_polygons.total_bounds
+    # minx, miny, maxx, maxy = usda_gdf.total_bounds
     # center_lat = (miny + maxy) / 2
     # center_lon = (minx + maxx) / 2
 
@@ -205,9 +239,9 @@ if tracts_gdf is not None:
     # simplified_polygons = simplified_polygons[simplified_polygons.geometry.is_valid & ~simplified_polygons.geometry.is_empty]
 
     # Add census tracts as shaded polygons
-    #folium.GeoJson(
-    #    simplified_polygons,
-    #    name = "Census Tracts",
+    # folium.GeoJson(
+    #     usda_gdf, #simplified_polygons
+    #     name = "USDA eligible areas", #    name = "Census Tracts",
     #    style_function=lambda feature: {
     #        "fillColor": get_color(feature["properties"].get("NMTC_Eligibility", None)),
     #        "color" : "black",
@@ -215,7 +249,14 @@ if tracts_gdf is not None:
     #        "fillOpacity": 0.7,
     #    },
     #    tooltip=folium.GeoJsonTooltip(fields=["GEOID", "NMTC_Eligibility"])
-    #).add_to(m)
+    # ).add_to(m)
+
+    # for _, rows in results.iterrows():
+    #     folium.Marker(
+    #         location=[rows.latitude, rows.longitude],
+    #         popup=rows.NAMELSAD,
+    #         icon=folium.Icon(color="blue", icon="map-marker")
+    #     ).add_to(m)
 
     #folium.Marker(
     #    location=[results_gdf.iloc[0]["latitude"], results_gdf.iloc[0]["longitude"]],
@@ -223,4 +264,4 @@ if tracts_gdf is not None:
     #).add_to(m)
 
     # Show map
-    # st_data = st_folium(m, width=1000, height=700)
+    #st_data = st_folium(m, width=1000, height=700)
