@@ -10,6 +10,7 @@ from streamlit_folium import st_folium
 import openpyxl
 import requests
 from io import BytesIO
+from shapely import wkt
 
 st.set_page_config(page_title="Eligibility Lookup Tool", page_icon="🌲", layout="wide")
 st.title("Census Tract Eligibility Lookup Tool")
@@ -63,7 +64,7 @@ if selected_states:
         st.stop()
 
 # Load USDA eligibility parquet
-@st.cache_data(show_spinner="Loading USDA server...")
+@st.cache_data(show_spinner="Loading USDA service...")
 def load_USDA_data():
     # try:
     #     parquet_path = hf_hub_download(
@@ -120,34 +121,22 @@ def load_eligibility_data():
     # read docs if needed
     return pd.read_csv("eligibility_flags.csv", dtype={"GEOID": str})
 
-@st.cache_data(show_spinner="Loading TEZ service...")
-def load_TEZ_data():
-    tez_url = r"https://services6.arcgis.com/qBPMNP2zACwkFVPe/ArcGIS/rest/services/TEZ_2020/FeatureServer/0/query"
-
-    print(tez_url)
-    params = {
-        "where": "1=1",
-        "outFields": "*",
-        "f": "geojson"
-    }
-
-    resp = requests.get(tez_url, params=params)
-    resp.raise_for_status()
-
-    gdf = gpd.read_file(BytesIO(resp.content))
+@st.cache_data(show_spinner="Loading TX Enterprise zones...")
+def load_tez_data():
+    parquet_path = hf_hub_download(
+        repo_id="MMNASH10/my-parquet-dataset",
+        filename="TEZ_2020_complete.parquet",
+        repo_type="dataset",
+    )
+    gdf = gpd.read_parquet(parquet_path)
     return gdf
+
 
 usda_gdf = load_USDA_data()
 #qoz_gdf = load_QOZ_data()
 #doz_gdf = load_DOZ_data()
 eligibility_df = load_eligibility_data()
-
-# If Texas is selected, load Texas Enterprise Zone service
-tez_gdf = None
-if selected_states and selected_fips:
-    print(selected_fips)
-    if "48" in selected_fips:
-        tez_data = load_TEZ_data()
+tez_gdf = load_tez_data()
 
 # Choose input method (Excel/CSV or Manual Input)
 st.subheader("Coordinates Input")
@@ -172,6 +161,8 @@ def process_coords(df):
     if not unmatched.empty:
         st.warning(f"{len(unmatched)} coordinate(s) did not fall within any census tract. Check your coordinates and make sure you selected the correct states.")
         st.dataframe(unmatched[["latitude", "longitude"]])
+
+
     # Merge eligibility data
     results = pd.merge(joined, eligibility_df, on="GEOID", how="left")
 
@@ -184,14 +175,17 @@ def process_coords(df):
     results["USDA Eligible"] = results["USDA Eligible"].map({True: "Yes", False: "No"})
 
     # Add Texas Enterprise Zone column if Texas is selected
-    if tez_gdf:
-        gdf_tez = gdf.to_crs(tez_gdf.crs)
-        tez_join = gpd.sjoin(gdf_tez, tez_gdf, how="left", predicate="within")
+    if selected_states and selected_fips:
+        print(selected_fips)
+        if "48" in selected_fips:
+            gdf_tez = gdf.to_crs(tez_gdf.crs)
+            tez_join = gpd.sjoin(gdf_tez, tez_gdf, how="left", predicate="within")
+            results["TX Enterprise Zone"] = tez_join.index_right.isna().map({True: "No", False: "Yes"})
 
-        results["TX Enterprise Zone"] = tez_join.index_right.isna()
-        results["TX Enterprise Zone"] = results["TX Enterprise Zone"].map({True: "No", False: "Yes"})
+            return results[
+                ["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility",
+                 "Opportunity_Zone", "USDA Eligible", "TX Enterprise Zone"]]
 
-        return results[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible", "TX Enterprise Zone"]]
 
     # Select output columns (NAMELSAD???)
     return results[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible"]]
@@ -267,7 +261,7 @@ if tracts_gdf is not None:
     # minx, miny, maxx, maxy = usda_gdf.total_bounds
     # center_lat = (miny + maxy) / 2
     # center_lon = (minx + maxx) / 2
-    #
+    # #
     # # Create the map centered on your data
     # m = folium.Map(location=[center_lat, center_lon], zoom_start=7, tiles="CartoDB positron")
 
@@ -298,7 +292,7 @@ if tracts_gdf is not None:
 
     # Add census tracts as shaded polygons
     # folium.GeoJson(
-    #     qoz_gdf, #simplified_polygons
+    #     tez_gdf, #simplified_polygons
     #     name = "Qualified OZs", #    name = "Census Tracts",
     #    # style_function=lambda feature: {
     #    #     "fillColor": get_color(feature["properties"].get("NMTC_Eligibility", None)),
@@ -308,7 +302,7 @@ if tracts_gdf is not None:
     #    # },
     #    # tooltip=folium.GeoJsonTooltip(fields=["GEOID", "NMTC_Eligibility"])
     # ).add_to(m)
-    #
+
     # for _, rows in results.iterrows():
     #     folium.Marker(
     #         location=[rows.latitude, rows.longitude],
@@ -321,5 +315,5 @@ if tracts_gdf is not None:
     # #    popup="Test Marker"
     # #).add_to(m)
     #
-    # # Show map
+    # Show map
     # st_data = st_folium(m, width=1000, height=700)
