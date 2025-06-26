@@ -1,3 +1,5 @@
+import tempfile
+
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
@@ -50,6 +52,7 @@ def load_states_tracts(fips_codes):
 
 # Load tracts only if states are selected
 tracts_gdf = None
+selected_fips = None
 if selected_states:
     selected_fips = [STATE_FIPS[state] for state in selected_states]
     try:
@@ -117,10 +120,34 @@ def load_eligibility_data():
     # read docs if needed
     return pd.read_csv("eligibility_flags.csv", dtype={"GEOID": str})
 
+@st.cache_data(show_spinner="Loading TEZ service...")
+def load_TEZ_data():
+    tez_url = r"https://services6.arcgis.com/qBPMNP2zACwkFVPe/ArcGIS/rest/services/TEZ_2020/FeatureServer/0/query"
+
+    print(tez_url)
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+
+    resp = requests.get(tez_url, params=params)
+    resp.raise_for_status()
+
+    gdf = gpd.read_file(BytesIO(resp.content))
+    return gdf
+
 usda_gdf = load_USDA_data()
 #qoz_gdf = load_QOZ_data()
 #doz_gdf = load_DOZ_data()
 eligibility_df = load_eligibility_data()
+
+# If Texas is selected, load Texas Enterprise Zone service
+tez_gdf = None
+if selected_states and selected_fips:
+    print(selected_fips)
+    if "48" in selected_fips:
+        tez_data = load_TEZ_data()
 
 # Choose input method (Excel/CSV or Manual Input)
 st.subheader("Coordinates Input")
@@ -155,6 +182,16 @@ def process_coords(df):
     # If point joins with ineligible area, mark as not eligible
     results["USDA Eligible"] = usda_join.index_right.isna()
     results["USDA Eligible"] = results["USDA Eligible"].map({True: "Yes", False: "No"})
+
+    # Add Texas Enterprise Zone column if Texas is selected
+    if tez_gdf:
+        gdf_tez = gdf.to_crs(tez_gdf.crs)
+        tez_join = gpd.sjoin(gdf_tez, tez_gdf, how="left", predicate="within")
+
+        results["TX Enterprise Zone"] = tez_join.index_right.isna()
+        results["TX Enterprise Zone"] = results["TX Enterprise Zone"].map({True: "No", False: "Yes"})
+
+        return results[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible", "TX Enterprise Zone"]]
 
     # Select output columns (NAMELSAD???)
     return results[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible"]]
