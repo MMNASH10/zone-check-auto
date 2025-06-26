@@ -140,6 +140,11 @@ def process_coords(df):
     gdf = gdf.to_crs(tracts_gdf.crs)
     # Spatial join with census tracts
     joined = gpd.sjoin(gdf, tracts_gdf, how="left", predicate="within")
+
+    unmatched = joined[joined["GEOID"].isna()]
+    if not unmatched.empty:
+        st.warning(f"{len(unmatched)} coordinate(s) did not fall within any census tract. Check your coordinates and make sure you selected the correct states.")
+        st.dataframe(unmatched[["latitude", "longitude"]])
     # Merge eligibility data
     results = pd.merge(joined, eligibility_df, on="GEOID", how="left")
 
@@ -174,7 +179,6 @@ if tracts_gdf is not None:
         if uploaded_file is not None:
             try:
                 df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith(".xlsx") else pd.read_csv(uploaded_file)
-                points_df = df
                 if "latitude" in df.columns and "longitude" in df.columns:
                     # Strip whitespace
                     df["latitude"] = df["latitude"].astype(str).str.strip()
