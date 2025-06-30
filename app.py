@@ -112,22 +112,9 @@ def load_eligibility_data():
     # read docs if needed
     return pd.read_csv("eligibility_flags.csv", dtype={"GEOID": str})
 
-@st.cache_data(show_spinner="Loading TX Enterprise zones...")
-def load_tez_data():
-    parquet_path = hf_hub_download(
-        repo_id="MMNASH10/my-parquet-dataset",
-        filename="TEZ_2020_complete.parquet",
-        repo_type="dataset",
-    )
-    gdf = gpd.read_parquet(parquet_path)
-    return gdf
-
 
 usda_gdf = load_USDA_data()
-#qoz_gdf = load_QOZ_data()
-#doz_gdf = load_DOZ_data()
 eligibility_df = load_eligibility_data()
-tez_gdf = load_tez_data()
 
 # Choose input method (Excel/CSV or Manual Input)
 st.subheader("Coordinates Input")
