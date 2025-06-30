@@ -10,3 +10,5 @@ pydeck~=0.9.1
 folium~=0.19.7
 streamlit_folium~=0.25.0
 streamlit-folium
+numpy~=2.3.0
+streamlit_folium~=0.25.0
