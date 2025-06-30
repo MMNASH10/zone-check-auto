@@ -18,7 +18,6 @@ import EZ_loaders
 st.set_page_config(page_title="Eligibility Lookup Tool", page_icon="🌲", layout="wide")
 st.title("Census Tract Eligibility Lookup Tool")
 
-
 STATE_FIPS = {
     "Alabama": "01", "Alaska": "02", "American Samoa": "60", "Arizona": "04", "Arkansas": "05",
     "California": "06", "Colorado": "08", "Connecticut": "09", "Delaware": "10", "District of Columbia": "11",
@@ -70,18 +69,6 @@ if selected_states:
 @st.cache_data(show_spinner="Loading USDA service...")
 @EZ_loaders.retry_loader(max_attempts=3, delay=2)
 def load_USDA_data():
-    # try:
-    #     parquet_path = hf_hub_download(
-    #         repo_id="MMNASH10/my-parquet-dataset",
-    #         filename=f"rbs_ineligible.parquet", #f"irp_ineligible.parquet"
-    #         repo_type="dataset",
-    #     )
-    #     gdf = gpd.read_parquet(parquet_path)
-    #     gdf = gdf.to_crs("EPSG:4326")
-    #     return gdf
-    # except Exception as e:
-    #     st.error(f"Failed to load USDA data: {e}")
-    #     return None
     url = "https://rdgdwe.sc.egov.usda.gov/arcgis/rest/services/Eligibility/Eligibility/MapServer/2/query"
     params = {
         "where": "1=1",
