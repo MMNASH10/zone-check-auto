@@ -11,6 +11,9 @@ import openpyxl
 import requests
 from io import BytesIO
 from shapely import wkt
+import numpy as np
+
+import EZ_loaders
 
 st.set_page_config(page_title="Eligibility Lookup Tool", page_icon="🌲", layout="wide")
 st.title("Census Tract Eligibility Lookup Tool")
@@ -65,6 +68,7 @@ if selected_states:
 
 # Load USDA eligibility parquet
 @st.cache_data(show_spinner="Loading USDA service...")
+@EZ_loaders.retry_loader(max_attempts=3, delay=2)
 def load_USDA_data():
     # try:
     #     parquet_path = hf_hub_download(
