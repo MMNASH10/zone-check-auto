@@ -152,21 +152,56 @@ def process_coords(df):
     results["USDA Eligible"] = usda_join.index_right.isna()
     results["USDA Eligible"] = results["USDA Eligible"].map({True: "Yes", False: "No"})
 
-    # Add Texas Enterprise Zone column if Texas is selected
-    if selected_states and selected_fips:
-        print(selected_fips)
-        if "48" in selected_fips:
-            gdf_tez = gdf.to_crs(tez_gdf.crs)
-            tez_join = gpd.sjoin(gdf_tez, tez_gdf, how="left", predicate="within")
-            results["TX Enterprise Zone"] = tez_join.index_right.isna().map({True: "No", False: "Yes"})
+    fips_reversed = {v: k for k, v in STATE_FIPS.items()}
+    results["State FIPS"] = results["GEOID"].str[:2]
+    results["State"] = results["State FIPS"].map(fips_reversed)
 
-            return results[
-                ["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility",
-                 "Opportunity_Zone", "USDA Eligible", "TX Enterprise Zone"]]
+    # Columns to be return regardless of selected states
+    base_cols = ["latitude", "longitude", "GEOID", "State", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible"]
 
+    # Map of state fip codes to their Enterprise Zone loaders
+    state_zone_loaders = {
+        "12": [("FL Rural Area Opportunity Zone", EZ_loaders.load_fl_rao_data)],
+        "48": [("TX Enterprise Zone", EZ_loaders.load_tez_data)],
+        "51": [("VA Enterprise Zone", EZ_loaders.load_vez_data)],
+    }
 
-    # Select output columns (NAMELSAD???)
-    return results[["latitude", "longitude", "GEOID", "NAMELSAD", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible"]]
+    # Add EZ columns based on selected states
+    for fip in selected_fips:
+        if fip in state_zone_loaders:
+            for col_name, loader_func in state_zone_loaders[fip]:
+                try:
+                    zone_gdf = loader_func()
+
+                    if zone_gdf is not None:
+                        gdf_zone = gdf.to_crs(zone_gdf.crs)
+                        zone_join = gpd.sjoin(gdf_zone, zone_gdf, how="left", predicate="within")
+                        in_zone = zone_join.index_right.isna().map({True: "No", False: "Yes"})
+
+                        # N/A if coordinate is not in corresponding State
+                        point_states = results["GEOID"].str[:2] # First 2 digits = state FIPS
+                        results[col_name] = np.where(
+                            point_states == fip,
+                            in_zone, # Yes or No if point is in the same state
+                            np.nan # N/A otherwise
+                        )
+                    else:
+                        st.warning(f"{col_name} data is empty or could not be loaded")
+                except Exception as e:
+                    st.warning(f"Failed to load {col_name}: {e}")
+
+    # Build state column list
+    state_cols = [col_name
+                  for fip in selected_fips
+                  if fip in state_zone_loaders
+                  for col_name, _ in state_zone_loaders[fip]]
+
+    # Have to separately add FL Rural Job Tax Credit since it is a boolean based on GEOID
+    if "12" in selected_fips:
+        results["FL Rural Job Tax Credit"] = results["GEOID"].apply(EZ_loaders.is_fl_rjtc).map({True: "Yes", False: np.nan})
+        state_cols.extend(["FL Rural Job Tax Credit"])
+
+    return results[base_cols + state_cols]
 
 #def eligibility_polygons_gdf(tracts, eligibility):
     #joined = pd.merge(tracts, eligibility, on="GEOID", how="left")
