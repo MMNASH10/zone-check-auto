@@ -74,6 +74,51 @@ def load_fl_rao_data():
     gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
     return gdf
 
+# -- Hawaii --
+@st.cache_data(show_spinner="Loading HI Enterprise zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_hi_ez_data():
+    url = "https://geodata.hawaii.gov/arcgis/rest/services/BusinessEconomy/MapServer/4/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
+
+# -- Illinois --
+@st.cache_data(show_spinner="Loading IL Enterprise zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_il_ez_data():
+    url = "https://aglomaps.revenue.illinois.gov/arcgis/rest/services/EZ_Zone_Admin_2025/MapServer/0/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
+
+# -- Illinois --
+@st.cache_data(show_spinner="Loading MD Enterprise zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_md_ez_data():
+    url = "https://mdgeodata.md.gov/imap/rest/services/BusinessEconomy/MD_IncentiveZones/FeatureServer/5/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
+
 # -- Texas --
 @st.cache_data(show_spinner="Loading TX Enterprise zones...")
 @retry_loader(max_attempts=3, delay=2)
