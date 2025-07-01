@@ -15,8 +15,8 @@ import numpy as np
 
 import EZ_loaders
 
-st.set_page_config(page_title="Eligibility Lookup Tool", page_icon="🌲", layout="wide")
-st.title("Census Tract Eligibility Lookup Tool")
+st.set_page_config(page_title="Zone Eligibility Check Tool", page_icon="🌲", layout="wide")
+st.title("Zone Eligibility Check Tool")
 
 STATE_FIPS = {
     "Alabama": "01", "Alaska": "02", "American Samoa": "60", "Arizona": "04", "Arkansas": "05",
