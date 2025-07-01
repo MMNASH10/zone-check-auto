@@ -157,13 +157,18 @@ def process_coords(df):
     results["State"] = results["State FIPS"].map(fips_reversed)
 
     # Columns to be return regardless of selected states
-    base_cols = ["latitude", "longitude", "GEOID", "State", "NMTC_Eligibility", "Opportunity_Zone", "USDA Eligible"]
+    base_cols = ["latitude", "longitude", "GEOID", "State", "NMTC Eligibility", "Opportunity Zone", "USDA Eligible"]
 
     # Map of state fip codes to their Enterprise Zone loaders
     state_zone_loaders = {
+        "08": [("CO Enterprise Zone", EZ_loaders.load_co_ez_data),
+               ("CO Enhanced Rural Enterprise Zone", EZ_loaders.load_co_erez_data)],
         "12": [("FL Rural Area Opportunity Zone", EZ_loaders.load_fl_rao_data)],
-        "48": [("TX Enterprise Zone", EZ_loaders.load_tez_data)],
-        "51": [("VA Enterprise Zone", EZ_loaders.load_vez_data)],
+        "15": [("HI Enterprise Zone", EZ_loaders.load_hi_ez_data)],
+        "17": [("IL Enterprise Zone", EZ_loaders.load_il_ez_data)],
+        "24": [("MD Enterprise Zone", EZ_loaders.load_md_ez_data)],
+        "48": [("TX Enterprise Zone", EZ_loaders.load_tx_ez_data)],
+        "51": [("VA Enterprise Zone", EZ_loaders.load_va_ez_data)],
     }
 
     # Add EZ columns based on selected states
