@@ -21,6 +21,35 @@ def retry_loader(max_attempts=3, delay=2):
         return wrapper
     return decorator
 
+# -- Colorado --
+st.cache_data(show_spinner="Loading CO Enterprise zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_co_ez_data():
+    url = "https://gis.colorado.gov/public/rest/services/OEDIT/Enterprise_Zones/MapServer/2/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
+
+st.cache_data(show_spinner="Loading CO Enhanced Rural Enterprise zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_co_erez_data():
+    url = "https://gis.colorado.gov/public/rest/services/OEDIT/Enterprise_Zones/MapServer/1/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
+
 # -- Florida --
     # Rural Job Tax Credit
 def is_fl_rjtc(geoid):
@@ -48,7 +77,7 @@ def load_fl_rao_data():
 # -- Texas --
 @st.cache_data(show_spinner="Loading TX Enterprise zones...")
 @retry_loader(max_attempts=3, delay=2)
-def load_tez_data():
+def load_tx_ez_data():
     parquet_path = hf_hub_download(
         repo_id="MMNASH10/my-parquet-dataset",
         filename="TEZ_2020_complete.parquet",
@@ -60,7 +89,7 @@ def load_tez_data():
 # -- Virginia --
 @st.cache_data(show_spinner="Loading VA Enterprise zones...")
 @retry_loader(max_attempts=3, delay=2)
-def load_vez_data():
+def load_va_ez_data():
     url = "https://maps.vedp.org/arcgis/rest/services/OpenData/OpenDataLayers/MapServer/3/query"
     params = {
         "where": "1=1",
