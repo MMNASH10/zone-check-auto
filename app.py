@@ -207,7 +207,7 @@ def process_coords(df):
 
     # Have to separately add FL Rural Job Tax Credit since it is a boolean based on GEOID
     if "12" in selected_fips:
-        results["FL Rural Job Tax Credit Zone"] = results["GEOID"].apply(EZ_loaders.is_fl_rjtc).map({True: "Yes", False: np.nan})
+        results["FL Rural Job Tax Credit Zone"] = results["GEOID"].apply(EZ_loaders.is_fl_rjtc).map({True: "Yes", False: "No"})
         state_cols.extend(["FL Rural Job Tax Credit Zone"])
 
     if "01" in selected_fips:
