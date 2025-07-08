@@ -210,6 +210,10 @@ def process_coords(df):
         results["FL Rural Job Tax Credit Zone"] = results["GEOID"].apply(EZ_loaders.is_fl_rjtc).map({True: "Yes", False: np.nan})
         state_cols.extend(["FL Rural Job Tax Credit Zone"])
 
+    if "01" in selected_fips:
+        results["AL Enterprise Zone"] = results["GEOID"].apply(EZ_loaders.is_al_ez).map({True: "Yes", False: "No"})
+        state_cols.extend(["AL Enterprise Zone"])
+
     return results[base_cols + state_cols]
 
 #def eligibility_polygons_gdf(tracts, eligibility):
