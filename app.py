@@ -70,6 +70,7 @@ if selected_states:
 @EZ_loaders.retry_loader(max_attempts=3, delay=2)
 def load_USDA_data():
     url = "https://rdgdwe.sc.egov.usda.gov/arcgis/rest/services/Eligibility/Eligibility/MapServer/2/query"
+    # https://rdgdwe.sc.egov.usda.gov/arcgis/rest/services/Eligibility/RD_RHS_AK_OFFROAD/MapServer
     params = {
         "where": "1=1",
         "outFields": "*",
