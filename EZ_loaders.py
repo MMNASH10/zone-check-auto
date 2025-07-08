@@ -119,6 +119,73 @@ def load_md_ez_data():
     gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
     return gdf
 
+# -- Missouri --
+@st.cache_data(show_spinner="Loading MO Enterprise zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_mo_ez_data():
+    url1 = "https://gis.mo.gov/arcgis/rest/services/DED/EEZ/MapServer/1/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url1, params=params)
+    resp.raise_for_status()
+    gdf1 = gpd.read_file(BytesIO(resp.content), driver="geojson")
+
+    url2 = "https://gis.mo.gov/arcgis/rest/services/DED/EEZ/MapServer/2/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url2, params=params)
+    resp.raise_for_status()
+    gdf2 = gpd.read_file(BytesIO(resp.content), driver="geojson")
+
+    gdf1 = gdf1.to_crs("EPSG:4326")
+    gdf2 = gdf2.to_crs("EPSG:4326")
+
+    gdf1_dissolved = gdf1.dissolve()
+    gdf2_dissolved = gdf2.dissolve()
+
+    gdf = gpd.overlay(gdf1_dissolved, gdf2_dissolved, how="union", keep_geom_type=False)
+
+    gdf = gdf[gdf.is_valid & ~gdf.is_empty]
+    gdf = gdf.explode(ignore_index=True)
+    gdf = gdf[gdf.geometry.type.isin(["Polygon", "MultiPolygon"])]
+
+    return gdf
+
+# -- Nebraska --
+@st.cache_data(show_spinner="Loading NE iHub zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_ne_ihub_data():
+    url = "https://gis.ne.gov/Agency/rest/services/IHubEligibleDED/FeatureServer/0/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
+
+@st.cache_data(show_spinner="Loading NE Enterprise zones...")
+@retry_loader(max_attempts=3, delay=2)
+def load_ne_ez_data():
+    url = "https://gis.ne.gov/Agency/rest/services/EntprznsDED/FeatureServer/0/query"
+    params = {
+        "where": "1=1",
+        "outFields": "*",
+        "f": "geojson"
+    }
+    resp = requests.get(url, params=params)
+    resp.raise_for_status()
+    gdf = gpd.read_file(BytesIO(resp.content), driver="geojson")
+    return gdf
+
 # -- Texas --
 @st.cache_data(show_spinner="Loading TX Enterprise zones...")
 @retry_loader(max_attempts=3, delay=2)
