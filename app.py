@@ -168,6 +168,9 @@ def process_coords(df):
         "15": [("HI Enterprise Zone", EZ_loaders.load_hi_ez_data)],
         "17": [("IL Enterprise Zone", EZ_loaders.load_il_ez_data)],
         "24": [("MD Enterprise Zone", EZ_loaders.load_md_ez_data)],
+        # "29": [("MO Enhanced Enterprise Zone", EZ_loaders.load_mo_ez_data)],
+        "31": [("NE Innovation Hub", EZ_loaders.load_ne_ihub_data),
+               ("NE Enterprise Zone", EZ_loaders.load_ne_ez_data)],
         "48": [("TX Enterprise Zone", EZ_loaders.load_tx_ez_data)],
         "51": [("VA Enterprise Zone", EZ_loaders.load_va_ez_data)],
     }
