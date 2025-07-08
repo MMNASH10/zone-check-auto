@@ -21,6 +21,15 @@ def retry_loader(max_attempts=3, delay=2):
         return wrapper
     return decorator
 
+# -- Alabama --
+def is_al_ez(geoid):
+    county_fips = {"01005", "01007", "01011", "01013", "01017", "01019", "01021", "01023", "01025", "01027", "01029",
+                   "01031", "01033", "01035", "01037", "01039", "01041", "01045", "01047", "01053", "01057", "01059",
+                   "01061", "01063", "01065", "01067", "01071", "01075", "01079", "01085", "01087", "01091", "01093",
+                   "01099", "01105", "01107", "01109", "01111", "01113", "01119", "01123", "01129", "01131", "01133"}
+
+    return str(geoid)[:5] in county_fips
+
 # -- Colorado --
 st.cache_data(show_spinner="Loading CO Enterprise zones...")
 @retry_loader(max_attempts=3, delay=2)
